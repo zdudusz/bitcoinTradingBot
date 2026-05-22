@@ -1,0 +1,450 @@
+
+========================================================================
+  GUIA COMPLETO DE CONFIGURAÇÃO — BTC Trading Bot
+  Explicação simples de todos os parâmetros do arquivo .env
+========================================================================
+
+Esse guia explica cada configuração do bot em linguagem simples,
+sem jargão técnico. Leia antes de alterar qualquer parâmetro.
+
+
+════════════════════════════════════════════════════════════════════════
+  PARTE 1 — INDICADORES TÉCNICOS (como o bot decide comprar ou vender)
+════════════════════════════════════════════════════════════════════════
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  RSI — Relative Strength Index (Índice de Força Relativa)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+O que é?
+  O RSI é um número que vai de 0 a 100 e mede se o mercado está
+  "cansado de cair" ou "cansado de subir".
+
+  Pense assim: imagina que o BTC caiu bastante nos últimos dias.
+  Em algum momento, quem queria vender já vendeu. O mercado fica
+  "esgotado" de queda — isso é o que o RSI mede.
+
+Como funciona na prática:
+  RSI abaixo de 30  → mercado em SOBREVENDA (muita gente vendeu,
+                       preço pode voltar a subir em breve)
+
+  RSI acima de 70   → mercado em SOBRECOMPRA (muita gente comprou,
+                       preço pode cair em breve)
+
+  RSI entre 30–70   → mercado neutro, bot fica parado (HOLD)
+
+Parâmetros no .env:
+
+  RSI_PERIOD=14
+  ↳ Quantas velas o bot usa para calcular o RSI.
+    14 é o valor clássico usado por traders do mundo todo.
+    Quanto MENOR o número → mais sensível, reage mais rápido,
+                             gera mais sinais, mais falsos positivos.
+    Quanto MAIOR o número → mais lento, menos sinais, mais confiável.
+    Recomendado: deixe em 14 a menos que saiba o que está fazendo.
+
+  RSI_OVERSOLD=30
+  ↳ Abaixo desse número o bot considera que é hora de COMPRAR.
+    Valor padrão: 30 (conservador, poucos sinais mas mais confiáveis)
+    Se mudar para 40: bot compra mais vezes, mas com sinais mais fracos.
+    Se mudar para 45: bot compra com frequência, risco maior de errar.
+
+    Exemplo real:
+      RSI_OVERSOLD=30 → bot comprou ~3 vezes no mês (mais preciso)
+      RSI_OVERSOLD=45 → bot comprou ~15 vezes no mês (mais arriscado)
+
+  RSI_OVERBOUGHT=70
+  ↳ Acima desse número o bot considera que é hora de VENDER.
+    Valor padrão: 70 (clássico)
+    Se mudar para 60: vende mais cedo, realiza lucro menor mas mais certo.
+    Se mudar para 80: aguarda mais, pode lucrar mais OU perder a janela.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  SMA — Simple Moving Average (Média Móvel Simples)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+O que é?
+  A SMA é simplesmente a MÉDIA do preço de fechamento das últimas
+  N velas. Ela cria uma "linha suave" no gráfico que mostra
+  a tendência geral do mercado.
+
+  Exemplo:
+    Se o BTC fechou em $70k, $72k, $75k, $73k, $71k nos últimos 5 dias,
+    a SMA(5) = (70+72+75+73+71) / 5 = $72.200
+
+Por que o bot usa a SMA(200)?
+  A SMA de 200 períodos é a mais famosa no mercado. Ela representa
+  a tendência de longo prazo. A regra é simples:
+
+  Preço ACIMA da SMA(200) → tendência GERAL é de alta (mercado saudável)
+  Preço ABAIXO da SMA(200) → tendência GERAL é de baixa (mercado fraco)
+
+  O bot só compra se o preço estiver ACIMA da SMA(200).
+  Isso evita comprar em uma queda longa (bear market).
+
+Parâmetro no .env:
+
+  SMA_PERIOD=200
+  ↳ Quantas velas usar para calcular a média.
+    200 é o filtro de tendência de longo prazo (padrão da indústria).
+    Se mudar para 50: tendência de médio prazo, mais trades, mais risco.
+    Se mudar para 100: meio-termo entre 50 e 200.
+    Recomendado: deixe em 200.
+
+  OHLCV_LIMIT=300
+  ↳ Quantas velas o bot baixa da exchange por ciclo.
+    Precisa ser MAIOR que SMA_PERIOD para a conta fechar.
+    Com SMA_PERIOD=200, precisa de pelo menos 201 velas.
+    300 dá uma margem confortável. Não mude isso.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  TIMEFRAME — O "tamanho" de cada vela
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+O que é?
+  O mercado é representado por "velas" — cada vela mostra o preço
+  de abertura, máximo, mínimo e fechamento em um período de tempo.
+
+  TIMEFRAME=15m significa que cada vela representa 15 minutos.
+
+  O bot analisa essas velas para calcular RSI e SMA.
+
+Opções disponíveis e seus efeitos:
+
+  TIMEFRAME=1m  → velas de 1 minuto
+                   Muito rápido. Gera muitos sinais.
+                   Alta chance de "ruído" (falsos sinais).
+                   Use só para TESTES.
+
+  TIMEFRAME=5m  → velas de 5 minutos
+                   Rápido. Bom para quem quer mais trades por dia.
+                   Ainda tem bastante ruído.
+
+  TIMEFRAME=15m → velas de 15 minutos (PADRÃO RECOMENDADO)
+                   Equilíbrio entre velocidade e confiabilidade.
+                   Menos trades, mas com mais qualidade.
+
+  TIMEFRAME=1h  → velas de 1 hora
+                   Conservador. Poucos trades por semana.
+                   Muito confiável. Bom para iniciantes.
+
+  TIMEFRAME=4h  → velas de 4 horas
+                   Muito conservador. Pode ter 1-2 trades por semana.
+                   Máxima confiabilidade.
+
+REGRA IMPORTANTE:
+  O LOOP_INTERVAL_SECONDS deve ser igual ou menor que o TIMEFRAME.
+  Se o TIMEFRAME é 15m (= 900 segundos), o loop deve ser 900s.
+  Se usar TIMEFRAME=1h, use LOOP_INTERVAL_SECONDS=3600.
+
+  Se o loop for muito mais rápido que o timeframe, o bot vai
+  checar várias vezes a MESMA vela e não vai mudar nada.
+
+
+════════════════════════════════════════════════════════════════════════
+  PARTE 2 — GESTÃO DE RISCO (como o bot protege seu dinheiro)
+════════════════════════════════════════════════════════════════════════
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  POSITION SIZE — Quanto dinheiro usar por operação
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  POSITION_SIZE_PCT=0.05
+  ↳ Porcentagem do saldo usado em cada compra.
+    0.05 = 5% do saldo disponível.
+
+  Exemplo com saldo de R$10.000:
+    0.05 (5%)  → usa R$500 por trade   ← recomendado para começar
+    0.10 (10%) → usa R$1.000 por trade ← moderado
+    0.20 (20%) → usa R$2.000 por trade ← agressivo
+    0.50 (50%) → usa R$5.000 por trade ← muito arriscado
+
+  Por que não usar 100%?
+    Se o trade der errado e você estiver com tudo dentro,
+    uma sequência de 3 stops loss já destrói grande parte do capital.
+    Com 5% por trade, você precisaria de 20 trades perdidos seguidos
+    para perder tudo — praticamente impossível com a estratégia certa.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  STOP LOSS — Limite de perda por operação
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+O que é?
+  O Stop Loss é uma "trava de segurança". Se o preço cair X%
+  depois que o bot comprou, ele VENDE AUTOMATICAMENTE para
+  evitar uma perda ainda maior.
+
+  STOP_LOSS_PCT=0.025
+  ↳ 0.025 = 2.5% de queda aciona a venda automática.
+
+  Exemplo:
+    Bot comprou BTC a $80.000
+    Stop Loss em 2.5% = $80.000 × (1 - 0.025) = $78.000
+    Se o preço cair para $78.000 → bot vende imediatamente.
+    Prejuízo máximo nesse trade: 2.5% do valor investido.
+
+  Opções e seus efeitos:
+    0.010 (1%)   → Stop muito apertado. Sai fácil demais.
+                   O mercado normal oscila 1% o tempo todo.
+                   Vai parar muitas operações boas no meio.
+
+    0.025 (2.5%) → Padrão recomendado. Equilibrado.
+                   Deixa o preço respirar sem arriscar muito.
+
+    0.050 (5%)   → Stop largo. Aguenta mais volatilidade.
+                   Mas a perda quando aciona é maior.
+
+    0.100 (10%)  → Muito largo. Só para quem tem estômago forte.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  TAKE PROFIT — Meta de lucro por operação
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+O que é?
+  O Take Profit é a meta de lucro. Quando o preço sobe X%
+  depois da compra, o bot VENDE AUTOMATICAMENTE e realiza o lucro.
+
+  TAKE_PROFIT_PCT=0.05
+  ↳ 0.05 = 5% de alta aciona a venda com lucro.
+
+  Exemplo:
+    Bot comprou BTC a $80.000
+    Take Profit em 5% = $80.000 × (1 + 0.05) = $84.000
+    Se o preço subir para $84.000 → bot vende e embolsa o lucro.
+
+  Opções e seus efeitos:
+    0.02 (2%)  → Meta pequena. Realiza lucro rápido.
+                 Muitos trades pequenos. Taxas corroem mais.
+
+    0.05 (5%)  → Padrão recomendado. Bom equilíbrio.
+
+    0.10 (10%) → Meta ambiciosa. Pode demorar mais para atingir.
+                 Maior lucro por trade, mas menos frequente.
+
+    0.20 (20%) → Muito ambicioso. Pode nunca atingir em mercados
+                 laterais (quando o preço fica de lado).
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  RATIO RISCO/RETORNO — A regra dos 2:1
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+O que é?
+  O ratio é a proporção entre quanto você pode ganhar e quanto
+  pode perder em cada trade.
+
+  Com os valores padrão:
+    Stop Loss:   2.5% de perda possível
+    Take Profit: 5.0% de lucro possível
+    Ratio:       5 / 2.5 = 2:1  (ganha o dobro do que arrisca)
+
+  Por que isso importa?
+    Com ratio 2:1, mesmo que o bot ERRE em metade dos trades,
+    você ainda sai no lucro. Veja:
+
+    10 trades, 5 ganhos, 5 perdidos (50% de acerto):
+      Ganhos:  5 × 5.0% = +25%
+      Perdas:  5 × 2.5% = -12.5%
+      Resultado líquido: +12.5% de lucro mesmo errando metade!
+
+  NUNCA coloque Take Profit menor que o Stop Loss.
+  O bot valida isso automaticamente e vai dar erro se você tentar.
+
+  Exemplos de combos válidos:
+    SL=0.020, TP=0.040  → ratio 2:1 (conservador)
+    SL=0.025, TP=0.050  → ratio 2:1 (padrão)
+    SL=0.030, TP=0.090  → ratio 3:1 (agressivo no lucro)
+    SL=0.015, TP=0.045  → ratio 3:1 (stop apertado)
+
+
+════════════════════════════════════════════════════════════════════════
+  PARTE 3 — PROTEÇÕES DO SISTEMA
+════════════════════════════════════════════════════════════════════════
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  CIRCUIT BREAKER — Desliga o bot se o dia for muito ruim
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+O que é?
+  Imagine um disjuntor elétrico: quando passa corrente demais,
+  ele desliga tudo para proteger a casa. O Circuit Breaker do bot
+  faz a mesma coisa com seu dinheiro.
+
+  Se as PERDAS ACUMULADAS no dia atingirem X% do saldo,
+  o bot para de operar até a meia-noite UTC e recomeça no dia seguinte.
+
+  DAILY_LOSS_LIMIT_PCT=0.05
+  ↳ 0.05 = se perder 5% do saldo em um único dia, o bot para.
+
+  Exemplo com saldo de $10.000:
+    Limite de 5% = $500 de perda máxima no dia
+    Se o bot perder $500 entre vários trades → desliga até amanhã.
+
+  Opções:
+    0.03 (3%)  → Muito protetor. Para cedo. Bom para iniciantes.
+    0.05 (5%)  → Padrão. Bom equilíbrio. Recomendado.
+    0.10 (10%) → Menos protetor. Permite dias mais difíceis.
+    0.02 (2%)  → Ultrasseguro. Praticamente qualquer dia ruim para o bot.
+
+  IMPORTANTE:
+    Quando o Circuit Breaker ativa, o bot NÃO fecha posições abertas.
+    Ele apenas para de ABRIR novas operações.
+    Reset automático à meia-noite UTC todos os dias.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  TIMING — Velocidade do bot
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  LOOP_INTERVAL_SECONDS=900
+  ↳ A cada quantos segundos o bot verifica o mercado.
+    900 segundos = 15 minutos (igual ao TIMEFRAME=15m).
+    Deve sempre combinar com o TIMEFRAME escolhido:
+
+    TIMEFRAME=1m  → LOOP_INTERVAL_SECONDS=60
+    TIMEFRAME=5m  → LOOP_INTERVAL_SECONDS=300
+    TIMEFRAME=15m → LOOP_INTERVAL_SECONDS=900
+    TIMEFRAME=1h  → LOOP_INTERVAL_SECONDS=3600
+    TIMEFRAME=4h  → LOOP_INTERVAL_SECONDS=14400
+
+  ERROR_RETRY_SECONDS=60
+  ↳ Se der um erro de conexão, quanto tempo esperar antes de tentar
+    de novo. 60 segundos é o padrão. Não precisa mudar.
+
+  API_TIMEOUT_MS=30000
+  ↳ Quanto tempo (em milissegundos) o bot espera a resposta
+    da exchange antes de considerar que houve timeout.
+    30000ms = 30 segundos. Não precisa mudar.
+
+
+════════════════════════════════════════════════════════════════════════
+  PARTE 4 — QUANDO MUDAR CADA PARÂMETRO
+════════════════════════════════════════════════════════════════════════
+
+  "Quero mais trades por dia"
+  ───────────────────────────
+    RSI_OVERSOLD=40        (compra com sinal mais fraco)
+    RSI_OVERBOUGHT=60      (vende mais cedo)
+    TIMEFRAME=5m           (velas menores, mais movimentação)
+    LOOP_INTERVAL_SECONDS=300
+
+  "Quero trades mais seguros e confiáveis"
+  ─────────────────────────────────────────
+    RSI_OVERSOLD=25        (só compra em sobrevenda forte)
+    RSI_OVERBOUGHT=75      (só vende em sobrecompra forte)
+    TIMEFRAME=1h           (velas maiores, menos ruído)
+    LOOP_INTERVAL_SECONDS=3600
+    STOP_LOSS_PCT=0.02     (stop mais apertado)
+    TAKE_PROFIT_PCT=0.06   (meta maior, ratio 3:1)
+
+  "Quero arriscar menos dinheiro por trade"
+  ──────────────────────────────────────────
+    POSITION_SIZE_PCT=0.02   (2% por trade em vez de 5%)
+    DAILY_LOSS_LIMIT_PCT=0.03 (circuit breaker mais sensível)
+
+  "Quero testar se o bot funciona rapidinho"
+  ───────────────────────────────────────────
+    RSI_OVERSOLD=50
+    TIMEFRAME=1m
+    LOOP_INTERVAL_SECONDS=30
+    (só para teste! volte aos valores originais depois)
+
+
+════════════════════════════════════════════════════════════════════════
+  PARTE 5 — TABELA RESUMO DE TODOS OS PARÂMETROS
+════════════════════════════════════════════════════════════════════════
+
+  Parâmetro                Padrão    O que faz
+  ──────────────────────────────────────────────────────────────────────
+  RSI_PERIOD               14        Períodos do RSI (não mude)
+  RSI_OVERSOLD             30        Abaixo disso = COMPRA
+  RSI_OVERBOUGHT           70        Acima disso = VENDE
+  SMA_PERIOD               200       Média de tendência (não mude)
+  OHLCV_LIMIT              300       Velas baixadas (não mude)
+  TIMEFRAME                15m       Tamanho de cada vela
+  POSITION_SIZE_PCT        0.05      % do saldo por trade (5%)
+  STOP_LOSS_PCT            0.025     % de queda para parar perda (2.5%)
+  TAKE_PROFIT_PCT          0.050     % de alta para realizar lucro (5%)
+  DAILY_LOSS_LIMIT_PCT     0.05      % de perda diária até desligar (5%)
+  LOOP_INTERVAL_SECONDS    900       Segundos entre verificações
+  ERROR_RETRY_SECONDS      60        Espera após erro de conexão
+  API_TIMEOUT_MS           30000     Timeout da API em milissegundos
+  USE_TESTNET              true      true=dinheiro falso, false=real
+
+
+════════════════════════════════════════════════════════════════════════
+  PARTE 6 — CONFIGURAÇÕES PRONTAS PARA COPIAR
+════════════════════════════════════════════════════════════════════════
+
+  [ PERFIL 1: INICIANTE — Conservador ]
+  ──────────────────────────────────────
+  RSI_OVERSOLD=28
+  RSI_OVERBOUGHT=72
+  SMA_PERIOD=200
+  TIMEFRAME=1h
+  LOOP_INTERVAL_SECONDS=3600
+  POSITION_SIZE_PCT=0.03
+  STOP_LOSS_PCT=0.02
+  TAKE_PROFIT_PCT=0.05
+  DAILY_LOSS_LIMIT_PCT=0.03
+
+  [ PERFIL 2: MODERADO — Padrão Recomendado ]
+  ─────────────────────────────────────────────
+  RSI_OVERSOLD=30
+  RSI_OVERBOUGHT=70
+  SMA_PERIOD=200
+  TIMEFRAME=15m
+  LOOP_INTERVAL_SECONDS=900
+  POSITION_SIZE_PCT=0.05
+  STOP_LOSS_PCT=0.025
+  TAKE_PROFIT_PCT=0.050
+  DAILY_LOSS_LIMIT_PCT=0.05
+
+  [ PERFIL 3: AGRESSIVO — Mais Trades ]
+  ───────────────────────────────────────
+  RSI_OVERSOLD=40
+  RSI_OVERBOUGHT=62
+  SMA_PERIOD=200
+  TIMEFRAME=5m
+  LOOP_INTERVAL_SECONDS=300
+  POSITION_SIZE_PCT=0.08
+  STOP_LOSS_PCT=0.020
+  TAKE_PROFIT_PCT=0.050
+  DAILY_LOSS_LIMIT_PCT=0.07
+
+  [ PERFIL 4: TESTE RÁPIDO — Só para ver o bot agir ]
+  ─────────────────────────────────────────────────────
+  RSI_OVERSOLD=50
+  RSI_OVERBOUGHT=55
+  SMA_PERIOD=50
+  OHLCV_LIMIT=100
+  TIMEFRAME=1m
+  LOOP_INTERVAL_SECONDS=30
+  POSITION_SIZE_PCT=0.05
+  STOP_LOSS_PCT=0.025
+  TAKE_PROFIT_PCT=0.050
+  DAILY_LOSS_LIMIT_PCT=0.10
+  !! ATENÇÃO: volte ao Perfil 2 após testar !!
+
+
+════════════════════════════════════════════════════════════════════════
+  AVISO FINAL
+════════════════════════════════════════════════════════════════════════
+
+  Nenhuma configuração garante lucro. O mercado é imprevisível.
+
+  Regras de ouro:
+    1. Sempre teste no Testnet antes de usar dinheiro real.
+    2. Nunca invista mais do que pode perder.
+    3. Comece com POSITION_SIZE_PCT pequeno (2-3%).
+    4. Monitore o bot todos os dias no início.
+    5. Não altere muitos parâmetros de uma vez.
+       Mude um, observe por alguns dias, depois mude outro.
+
+========================================================================
+  Versão 1.0 — BTC Trading Bot
+========================================================================
